@@ -1,136 +1,146 @@
--- ReplayLogGUI.client.lua
+-- Replay Logger GUI (iOS / Mobile SAFE)
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local RS = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 
-local player = Players.LocalPlayer
+local LP = Players.LocalPlayer
+
+-- ===== SELF CHECK REMOTE =====
 local REMOTE_NAME = "ReplayLogEvent"
+local LogRemote = RS:FindFirstChild(REMOTE_NAME)
 
-local LogRemote = ReplicatedStorage:WaitForChild(REMOTE_NAME, 5)
 if not LogRemote then
-    warn("[ReplayLogGUI] ReplayLogEvent not found")
+    warn("[ReplayGUI] ReplayLogEvent not found")
     return
 end
 
--- ========================
--- STATE
--- ========================
+-- ===== STATE =====
 local paused = false
 local buffer = {}
-local filters = {
-    MOVE=true, ANIM=true, STATE=true, EVENT=true, SYSTEM=true
-}
+local lines = {}
 
--- ========================
--- GUI
--- ========================
+table.insert(lines, "=== REPLAY ACTIVITY LOG ===")
+table.insert(lines, "Status: LIVE")
+table.insert(lines, "===========================\n")
+
+-- ===== GUI =====
 local gui = Instance.new("ScreenGui")
-gui.Name = "ReplayLogGUI"
+gui.Name = "ReplayLoggerGUI"
 gui.ResetOnSpawn = false
-gui.Parent = player.PlayerGui
+gui.Parent = LP:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.65,0.65)
-frame.Position = UDim2.fromScale(0.175,0.175)
-frame.BackgroundColor3 = Color3.fromRGB(18,18,18)
+frame.Size = UDim2.fromScale(0.9, 0.8)
+frame.Position = UDim2.fromScale(0.05, 0.1)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
-local scroll = Instance.new("ScrollingFrame", frame)
-scroll.Position = UDim2.new(0,8,0,42)
-scroll.Size = UDim2.new(1,-16,1,-92)
-scroll.CanvasSize = UDim2.new()
-scroll.ScrollBarImageTransparency = 0.2
+-- ===== TITLE =====
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, -20, 0, 40)
+title.Position = UDim2.new(0, 10, 0, 5)
+title.Text = "Replay Activity Logger (Tap & Copy)"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.TextScaled = true
 
-local layout = Instance.new("UIListLayout", scroll)
-layout.Padding = UDim.new(0,4)
+-- ===== TEXT BOX (LOG) =====
+local box = Instance.new("TextBox", frame)
+box.Position = UDim2.new(0, 10, 0, 50)
+box.Size = UDim2.new(1, -20, 1, -100)
+box.MultiLine = true
+box.ClearTextOnFocus = false
+box.TextWrapped = false
+box.TextEditable = true -- WAJIB UNTUK iOS COPY
+box.TextXAlignment = Enum.TextXAlignment.Left
+box.TextYAlignment = Enum.TextYAlignment.Top
+box.Font = Enum.Font.Code
+box.TextSize = 13
+box.TextColor3 = Color3.fromRGB(220,220,220)
+box.BackgroundColor3 = Color3.fromRGB(15,15,15)
+box.BorderSizePixel = 0
+box.Text = table.concat(lines, "\n")
+Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
 
--- ========================
--- LOG DISPLAY
--- ========================
-local function addLog(tag, text)
-    if not filters[tag] then return end
-
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1,-10,0,20)
-    lbl.AutomaticSize = Enum.AutomaticSize.Y
-    lbl.TextWrapped = true
-    lbl.BackgroundTransparency = 1
-    lbl.Font = Enum.Font.Code
-    lbl.TextSize = 14
-    lbl.TextXAlignment = Left
-    lbl.TextYAlignment = Top
-    lbl.Text = "["..tag.."] "..text
-
-    lbl.TextColor3 =
-        tag=="MOVE" and Color3.fromRGB(180,180,180)
-        or tag=="ANIM" and Color3.fromRGB(120,170,255)
-        or tag=="STATE" and Color3.fromRGB(140,255,140)
-        or tag=="EVENT" and Color3.fromRGB(255,190,120)
-        or Color3.new(1,1,1)
-
-    lbl.Parent = scroll
-    task.wait()
-    scroll.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y)
-    scroll.CanvasPosition = Vector2.new(
-        0,
-        math.max(0, scroll.CanvasSize.Y.Offset - scroll.AbsoluteWindowSize.Y)
-    )
-end
-
--- ========================
--- REMOTE HANDLER
--- ========================
-LogRemote.OnClientEvent:Connect(function(tag, text)
-    if paused then
-        table.insert(buffer, {tag, text})
-    else
-        addLog(tag, text)
-    end
-end)
-
--- ========================
--- BUTTONS
--- ========================
-local function button(txt, x)
+-- ===== BUTTON MAKER =====
+local function makeButton(text, x)
     local b = Instance.new("TextButton", frame)
-    b.Size = UDim2.new(0.15,0,0,30)
-    b.Position = UDim2.new(x,5,0,5)
-    b.Text = txt
+    b.Size = UDim2.new(0.28, 0, 0, 32)
+    b.Position = UDim2.new(x, 0, 1, -38)
+    b.Text = text
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
     b.BackgroundColor3 = Color3.fromRGB(35,35,35)
     b.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
     return b
 end
 
-local pauseBtn = button("⏸ Pause",0)
-local playBtn  = button("▶ Play",0.16)
-local clearBtn = button("🧹 Clear",0.32)
+local pauseBtn = makeButton("⏸ PAUSE", 0.03)
+local playBtn  = makeButton("▶ PLAY", 0.36)
+local clearBtn = makeButton("🧹 CLEAR", 0.69)
 
+-- ===== LOG FUNCTION =====
+local function refresh()
+    box.Text = table.concat(lines, "\n")
+    box.CursorPosition = #box.Text + 1
+end
+
+local function addLine(text)
+    table.insert(lines, text)
+    refresh()
+end
+
+-- ===== REMOTE LISTENER =====
+LogRemote.OnClientEvent:Connect(function(tag, text)
+    local line = "[" .. tag .. "] " .. text
+
+    if paused then
+        table.insert(buffer, line)
+    else
+        addLine(line)
+    end
+end)
+
+-- ===== BUTTON LOGIC =====
 pauseBtn.MouseButton1Click:Connect(function()
     paused = true
+    addLine("\n=== PAUSED ===")
 end)
 
 playBtn.MouseButton1Click:Connect(function()
     paused = false
-    for _,v in ipairs(buffer) do
-        addLog(v[1], v[2])
+    addLine("\n=== RESUMED ===")
+    for _,l in ipairs(buffer) do
+        addLine(l)
     end
     buffer = {}
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
-    scroll:ClearAllChildren()
-    layout.Parent = scroll
+    lines = {
+        "=== REPLAY ACTIVITY LOG ===",
+        "CLEARED",
+        "===========================\n"
+    }
+    buffer = {}
+    refresh()
 end)
 
--- ========================
--- FILTER BUTTONS
--- ========================
-local i = 0
-for tag,_ in pairs(filters) do
-    local f = button(tag, 0.5 + i*0.12)
-    f.MouseButton1Click:Connect(function()
-        filters[tag] = not filters[tag]
-        f.TextTransparency = filters[tag] and 0 or 0.6
-    end)
-    i += 1
-end
+-- ===== NOTIFICATION =====
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Replay Logger";
+        Text = "Tap TextBox → Select All → Copy";
+        Duration = 6;
+    })
+end)
