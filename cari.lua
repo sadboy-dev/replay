@@ -9,8 +9,8 @@ local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 
 -- Cek folder Models dan Tools
-local modelFolder = ReplicatedStorage:FindFirstChild("Model")
-local toolFolder  = ReplicatedStorage:FindFirstChild("Tool")
+local modelFolder = ReplicatedStorage:FindFirstChild("Modules")
+
 
 -- Jika keduanya tidak ada, hentikan
 if not modelFolder and not toolFolder then
