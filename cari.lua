@@ -1,97 +1,129 @@
 -- ===============================
--- CLIENT-SIDE ESP + LINE TO MODEL
+-- Pirate Chest / PlacePressureItem GUI (Input2 Optional)
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-local RS = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-
--- Model path
-local modelPath = {"Assets","SearchItems","DeadManCompass","Model"}
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local LocalPlayer = Players.LocalPlayer
 
 -- ===============================
--- GET MODEL FUNCTION
+-- GUI Setup
 -- ===============================
-local function getModel(path)
-    local current = RS
-    for _, name in ipairs(path) do
-        current = current:FindFirstChild(name)
-        if not current then return nil end
+local gui = Instance.new("ScreenGui")
+gui.Name = "PlacePressureItemGUI"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.fromScale(0.3, 0.2)
+frame.Position = UDim2.fromScale(0.35, 0.3)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+-- Title
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Execute Remote"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+
+-- Input 1
+local input1Box = Instance.new("TextBox", frame)
+input1Box.Size = UDim2.new(0.9, 0, 0, 30)
+input1Box.Position = UDim2.new(0.05, 0, 0, 40)
+input1Box.PlaceholderText = "Remote Name (Input1)"
+input1Box.Text = ""
+input1Box.ClearTextOnFocus = false
+input1Box.BackgroundColor3 = Color3.fromRGB(40,40,40)
+input1Box.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", input1Box).CornerRadius = UDim.new(0,6)
+
+-- Input 2 (Opsional)
+local input2Box = Instance.new("TextBox", frame)
+input2Box.Size = UDim2.new(0.9, 0, 0, 30)
+input2Box.Position = UDim2.new(0.05, 0, 0, 80)
+input2Box.PlaceholderText = "Argument / Value (Input2, optional)"
+input2Box.Text = ""
+input2Box.ClearTextOnFocus = false
+input2Box.BackgroundColor3 = Color3.fromRGB(40,40,40)
+input2Box.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", input2Box).CornerRadius = UDim.new(0,6)
+
+-- Execute Button
+local executeBtn = Instance.new("TextButton", frame)
+executeBtn.Size = UDim2.new(0.9,0,0,35)
+executeBtn.Position = UDim2.new(0.05,0,0,125)
+executeBtn.Text = "Execute"
+executeBtn.Font = Enum.Font.GothamBold
+executeBtn.TextSize = 16
+executeBtn.BackgroundColor3 = Color3.fromRGB(45, 150, 45)
+executeBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", executeBtn).CornerRadius = UDim.new(0,8)
+
+-- ===============================
+-- Button Logic
+-- ===============================
+executeBtn.MouseButton1Click:Connect(function()
+    local input1 = input1Box.Text
+    local input2 = input2Box.Text
+
+    if input1 == "" then
+        StarterGui:SetCore("SendNotification", {
+            Title = "Execute Remote",
+            Text = "Input1 (Remote Name) is required!",
+            Duration = 3
+        })
+        return
     end
-    return current
-end
 
--- ===============================
--- CREATE ESP
--- ===============================
-local currentESP
-local linePart -- invisible part for line
-local beam -- beam connecting player to target
+    -- Tunggu net folder
+    local success, NetFolder = pcall(function()
+        return ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index")
+            :WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+    end)
+    if not success then return end
 
-local function createESP(model)
-    if not model or not model.PrimaryPart then return end
+    -- Ambil remote
+    local remote = NetFolder:FindFirstChild(input1)
+    if remote and remote:IsA("RemoteEvent") then
+        local fired = false
+        pcall(function()
+            if input2 == "" then
+                -- Fire tanpa argumen
+                remote:FireServer()
+                fired = true
+            else
+                -- Fire dengan argumen
+                local n = tonumber(input2)
+                if n then
+                    remote:FireServer(n)
+                else
+                    remote:FireServer(input2)
+                end
+                fired = true
+            end
+        end)
 
-    -- Highlight
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = model
-    highlight.FillColor = Color3.fromRGB(255,0,0)
-    highlight.FillTransparency = 0.5
-    highlight.OutlineColor = Color3.fromRGB(255,255,255)
-    highlight.OutlineTransparency = 0
-    highlight.Parent = LP:WaitForChild("PlayerGui")
-
-    -- Beam
-    linePart = Instance.new("Part")
-    linePart.Anchored = true
-    linePart.CanCollide = false
-    linePart.Transparency = 1
-    linePart.Size = Vector3.new(0.2,0.2,0.2)
-    linePart.Parent = workspace
-
-    local attachment0 = Instance.new("Attachment", LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") or LP.Character.PrimaryPart)
-    local attachment1 = Instance.new("Attachment", model.PrimaryPart)
-
-    beam = Instance.new("Beam")
-    beam.Attachment0 = attachment0
-    beam.Attachment1 = attachment1
-    beam.Width0 = 0.2
-    beam.Width1 = 0.2
-    beam.Color = ColorSequence.new(Color3.fromRGB(0,255,0))
-    beam.FaceCamera = true
-    beam.Parent = linePart
-
-    return highlight
-end
-
--- ===============================
--- UPDATE / REFRESH ESP + LINE
--- ===============================
-local function updateESP()
-    local model = getModel(modelPath)
-    if model and model.PrimaryPart and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        if not currentESP then
-            currentESP = createESP(model)
-        else
-            currentESP.Adornee = model
-            -- Update beam attachments if needed
-            beam.Attachment1.Position = model.PrimaryPart.Position
+        if fired then
+            StarterGui:SetCore("SendNotification", {
+                Title = "Execute Remote",
+                Text = input1.." fired"..(input2 ~= "" and " with argument: "..input2 or ""),
+                Duration = 3
+            })
         end
     else
-        if currentESP then
-            currentESP:Destroy()
-            currentESP = nil
-        end
-        if linePart then
-            linePart:Destroy()
-            linePart = nil
-            beam = nil
-        end
+        StarterGui:SetCore("SendNotification", {
+            Title = "Execute Remote",
+            Text = "Remote "..input1.." not found!",
+            Duration = 3
+        })
     end
-end
-
--- ===============================
--- RUN EVERY FRAME
--- ===============================
-RunService.RenderStepped:Connect(updateESP)
+end)
