@@ -1,17 +1,20 @@
 -- ===============================
--- Inventory Cloner GUI
+-- Inventory Fish Cloner GUI
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local InventoryGUI = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Inventory"):WaitForChild("Main"):WaitForChild("ScrollingFrame")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local InventoryGUI = PlayerGui:WaitForChild("Inventory"):WaitForChild("Main"):WaitForChild("ScrollingFrame")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+local Workspace = game:GetService("Workspace")
 
 -- GUI Setup
 local gui = Instance.new("ScreenGui")
-gui.Name = "InventoryClonerGUI"
+gui.Name = "FishClonerGUI"
 gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.Parent = PlayerGui
 
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.fromScale(0.3, 0.6)
@@ -26,7 +29,7 @@ local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,40)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "Inventory Cloner"
+title.Text = "Fish Cloner"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
@@ -43,52 +46,52 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0,6)
 
 -- ===============================
--- Populate Inventory Items
+-- Function to populate fish items
 -- ===============================
-for _, slot in ipairs(InventoryGUI:GetChildren()) do
-    if slot:IsA("Frame") and slot:FindFirstChild("Inner") then
-        local itemFrame = slot.Inner
-        local itemName = itemFrame:FindFirstChild("NameLabel") and itemFrame.NameLabel.Text or "Unknown"
-        local itemId = itemFrame:FindFirstChild("Tags") and itemFrame.Tags:FindFirstChild("ItemId") and itemFrame.Tags.ItemId.Value or "?"
-        local rarity = itemFrame:FindFirstChild("Tags") and itemFrame.Tags:FindFirstChild("Rarity") and itemFrame.Tags.Rarity.Value or "?"
+local function populateFishGUI()
+    -- Clear old buttons
+    scroll:ClearAllChildren()
+    for _, slot in ipairs(InventoryGUI:GetChildren()) do
+        if slot:IsA("Frame") and slot:FindFirstChild("Inner") then
+            local itemFrame = slot.Inner
+            local tags = itemFrame:FindFirstChild("Tags")
+            local itemName = itemFrame:FindFirstChild("NameLabel") and itemFrame.NameLabel.Text or "Unknown"
+            local itemId = tags and tags:FindFirstChild("ItemId") and tags.ItemId.Value or "?"
+            local rarity = tags and tags:FindFirstChild("Rarity") and tags.Rarity.Value or "?"
+            local itemType = tags and tags:FindFirstChild("Type") and tags.Type.Value or "Unknown"
 
-        local btn = Instance.new("TextButton", scroll)
-        btn.Size = UDim2.new(1,0,0,36)
-        btn.Text = string.format("%s | ID: %s | Rarity: %s", itemName, itemId, rarity)
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 14
-        btn.TextColor3 = Color3.new(1,1,1)
-        btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+            -- Only fish
+            if itemType:lower() == "fish" then
+                local btn = Instance.new("TextButton", scroll)
+                btn.Size = UDim2.new(1,0,0,36)
+                btn.Text = string.format("%s | ID: %s | Rarity: %s", itemName, itemId, rarity)
+                btn.Font = Enum.Font.Gotham
+                btn.TextSize = 14
+                btn.TextColor3 = Color3.new(1,1,1)
+                btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
 
-        btn.MouseButton1Click:Connect(function()
-            local clone = nil
-            -- Tool → Backpack
-            if itemFrame:FindFirstChildOfClass("Tool") then
-                clone = itemFrame:FindFirstChildOfClass("Tool"):Clone()
-                clone.Parent = LocalPlayer.Backpack
-            else
-                -- Model → Workspace
-                if itemFrame:FindFirstChildOfClass("Model") then
-                    clone = itemFrame:FindFirstChildOfClass("Model"):Clone()
-                    -- Set PrimaryPart jika belum ada
-                    if not clone.PrimaryPart then
-                        local firstPart = clone:FindFirstChildWhichIsA("BasePart") or clone:FindFirstChildWhichIsA("MeshPart")
-                        if firstPart then
-                            clone.PrimaryPart = firstPart
-                        end
-                    end
-                    if clone.PrimaryPart then
-                        clone:SetPrimaryPartCFrame(LocalPlayer.Character.PrimaryPart.CFrame + Vector3.new(5,0,0))
-                        clone.Parent = workspace
+                -- Click to clone
+                btn.MouseButton1Click:Connect(function()
+                    local clone = itemFrame:Clone()
+                    if clone then
+                        clone.Parent = Backpack
+                        print("Cloned fish:", itemName, "ID:", itemId, "Rarity:", rarity)
                     else
-                        warn("Cannot clone model, no PrimaryPart:", itemName)
+                        warn("Failed to clone:", itemName)
                     end
-                end
+                end)
             end
-            if clone then
-                print("Cloned:", itemName, "ID:", itemId, "Rarity:", rarity)
-            end
-        end)
+        end
     end
 end
+
+-- Initial populate
+populateFishGUI()
+
+-- Optional: auto-refresh every few seconds
+task.spawn(function()
+    while task.wait(5) do
+        populateFishGUI()
+    end
+end)
