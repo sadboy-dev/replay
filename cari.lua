@@ -1,25 +1,21 @@
 -- ===============================
--- Model/Tool Cloner GUI (Flexible)
+-- Model/Tool Cloner GUI (Aman)
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
 
--- === CONFIG ===
--- Ubah folder target sesuai game
--- Contoh:
--- ReplicatedStorage.Models
--- ReplicatedStorage.Assets.Tools
--- ReplicatedStorage.Modules.ModelDownloader.Collection["Enchant Stones"]
-local targetFolder = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("ModelDownloader"):WaitForChild("Collection"):WaitForChild("Enchant Stones")
+-- Folder target (ubah sesuai folder model/tool)
+local folder = ReplicatedStorage:WaitForChild("Models") -- ganti sesuai foldermu
 
 -- ===============================
 -- GUI Setup
 -- ===============================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ModelClonerGUI"
+gui.Name = "SafeModelClonerGUI"
 gui.ResetOnSpawn = false
 gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -34,7 +30,7 @@ local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,40)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "Model/Tool Cloner"
+title.Text = "Model/Tool Cloner (Safe)"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
@@ -53,7 +49,7 @@ layout.Padding = UDim.new(0,6)
 -- ===============================
 -- Create Button for each Model/Tool
 -- ===============================
-for _, item in ipairs(targetFolder:GetChildren()) do
+for _, item in ipairs(folder:GetChildren()) do
     if item:IsA("Model") or item:IsA("Tool") then
         local btn = Instance.new("TextButton", scroll)
         btn.Size = UDim2.new(1,0,0,36)
@@ -69,10 +65,26 @@ for _, item in ipairs(targetFolder:GetChildren()) do
             if clone:IsA("Tool") then
                 clone.Parent = LocalPlayer.Backpack
             else
-                clone.Parent = workspace
+                -- Aman: set PrimaryPart jika belum ada
+                if not clone.PrimaryPart then
+                    local firstPart = clone:FindFirstChildWhichIsA("BasePart")
+                    if firstPart then
+                        clone.PrimaryPart = firstPart
+                    else
+                        warn("Model "..clone.Name.." tidak punya BasePart. Tidak bisa spawn.")
+                        return
+                    end
+                end
+
+                clone.Parent = Workspace
+
+                -- spawn di samping player
                 if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
-                    local offset = Vector3.new(5,0,0) -- tempat muncul di samping player
-                    clone:SetPrimaryPartCFrame(LocalPlayer.Character.PrimaryPart.CFrame + offset)
+                    local offset = Vector3.new(5,0,0)
+                    clone:SetPrimaryPartCFrame(CFrame.new(LocalPlayer.Character.PrimaryPart.Position + offset))
+                else
+                    -- jika tidak ada karakter, spawn di asal world
+                    clone:SetPrimaryPartCFrame(CFrame.new(Vector3.new(0,5,0)))
                 end
             end
         end)
