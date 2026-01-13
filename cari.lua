@@ -10,7 +10,7 @@ local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 
 -- Folder target untuk clone (ubah sesuai kebutuhan)
-local targetFolder = ReplicatedStorage:WaitForChild("Models") -- contoh folder
+local targetFolder = ReplicatedStorage:WaitForChild("Model") -- contoh folder
 
 -- ===============================
 -- GUI Setup
