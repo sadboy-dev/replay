@@ -1,28 +1,40 @@
 -- ===============================
--- CLIENT-ONLY EVENT LOGGER (MINIMIZE)
+-- FishIt FULL Scanner + GUI Read-Only (iOS Friendly)
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
+local RS = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
-local StarterGui = game:GetService("StarterGui")
-local UserInputService = game:GetService("UserInputService")
 
 -- ===============================
--- STATE
+-- SCAN REPLICATEDSTORAGE
 -- ===============================
-local paused = false
-local logs = {}
-local buffer = {}
-local minimized = false
-local originalSize = UDim2.fromScale(0.9,0.8)
-local originalPos  = UDim2.fromScale(0.05,0.1)
+local lines = {}
+table.insert(lines, "=== FISHIT REPLICATEDSTORAGE SCAN ===\n")
+
+local count = 0
+for _, v in ipairs(RS:GetDescendants()) do
+    if v:IsA("Tool") or v:IsA("Model") then
+        count += 1
+        table.insert(lines, v.ClassName .. " | " .. v:GetFullName())
+    end
+end
+
+table.insert(lines, "\nTOTAL FOUND: " .. count)
+table.insert(lines, "=== END ===")
+
+local finalText = table.concat(lines, "\n")
 
 -- ===============================
 -- GUI SETUP
 -- ===============================
+local minimized = false
+local originalSize = UDim2.fromScale(0.9,0.8)
+local originalPos  = UDim2.fromScale(0.05,0.1)
+
 local gui = Instance.new("ScreenGui")
-gui.Name = "ClientEventLoggerGUI"
+gui.Name = "FishItScannerGUI"
 gui.ResetOnSpawn = false
 gui.Parent = LP:WaitForChild("PlayerGui")
 
@@ -32,13 +44,13 @@ frame.Position = originalPos
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.Draggable = false
+frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,-60,0,40) -- sisakan space untuk tombol minimize
+title.Size = UDim2.new(1,-60,0,40)
 title.Position = UDim2.new(0,10,0,5)
-title.Text = "Client Event Logger (Tap & Copy)"
+title.Text = "FishIt FULL Scanner"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
@@ -50,7 +62,8 @@ box.Size = UDim2.new(1,-20,1,-100)
 box.MultiLine = true
 box.ClearTextOnFocus = false
 box.TextWrapped = false
-box.TextEditable = true
+box.TextEditable = false     -- READ-ONLY
+box.TextSelectable = true    -- COPY-FRIENDLY iOS
 box.TextXAlignment = Enum.TextXAlignment.Left
 box.TextYAlignment = Enum.TextYAlignment.Top
 box.Font = Enum.Font.Code
@@ -58,8 +71,9 @@ box.TextSize = 13
 box.TextColor3 = Color3.fromRGB(220,220,220)
 box.BackgroundColor3 = Color3.fromRGB(15,15,15)
 box.BorderSizePixel = 0
+box.ScrollingEnabled = true
 Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
-box.Text = "=== CLIENT EVENT LOG ===\n"
+box.Text = finalText
 
 -- ===============================
 -- BUTTONS
@@ -81,26 +95,17 @@ local pauseBtn = makeButton("⏸ PAUSE",0.03)
 local playBtn  = makeButton("▶ PLAY",0.36)
 local clearBtn = makeButton("🧹 CLEAR",0.69)
 
+-- tombol dummy
 pauseBtn.MouseButton1Click:Connect(function()
-    paused = true
-    table.insert(logs,"=== PAUSED ===")
-    box.Text = table.concat(logs,"\n")
+    box.Text = box.Text .. "\n[PAUSE CLICKED]"
     box.CursorPosition = #box.Text+1
 end)
-
 playBtn.MouseButton1Click:Connect(function()
-    paused = false
-    table.insert(logs,"=== RESUMED ===")
-    for _,v in ipairs(buffer) do table.insert(logs,v) end
-    buffer = {}
-    box.Text = table.concat(logs,"\n")
+    box.Text = box.Text .. "\n[PLAY CLICKED]"
     box.CursorPosition = #box.Text+1
 end)
-
 clearBtn.MouseButton1Click:Connect(function()
-    logs = {"=== CLIENT EVENT LOG CLEARED ==="}
-    buffer = {}
-    box.Text = table.concat(logs,"\n")
+    box.Text = finalText  -- reset ke hasil scan
 end)
 
 -- ===============================
@@ -118,7 +123,6 @@ Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0,6)
 
 minimizeBtn.MouseButton1Click:Connect(function()
     if minimized then
-        -- restore
         frame.Size = originalSize
         frame.Position = originalPos
         box.Visible = true
@@ -127,7 +131,6 @@ minimizeBtn.MouseButton1Click:Connect(function()
         clearBtn.Visible = true
         minimized = false
     else
-        -- minimize
         frame.Size = UDim2.new(0,200,0,40)
         box.Visible = false
         pauseBtn.Visible = false
@@ -138,30 +141,22 @@ minimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ===============================
--- CLIENT-ONLY EVENT CAPTURE
+-- AUTO SCROLL FUNCTION
 -- ===============================
-UserInputService.InputBegan:Connect(function(input,gp)
-    if gp then return end
-    if input.UserInputType == Enum.UserInputType.Keyboard then
-        table.insert(logs,"[KEY] "..tostring(input.KeyCode))
-    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-        table.insert(logs,"[MOUSE] Left Click")
-    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-        table.insert(logs,"[MOUSE] Right Click")
-    elseif input.UserInputType == Enum.UserInputType.Touch then
-        table.insert(logs,"[TOUCH] Screen tap")
-    end
-    box.Text = table.concat(logs,"\n")
-    box.CursorPosition = #box.Text+1
-end)
+local function appendText(line)
+    box.Text = box.Text .. "\n" .. line
+    task.defer(function()
+        box.CursorPosition = #box.Text+1
+    end)
+end
 
 -- ===============================
--- iOS NOTIFICATION
+-- iOS Notification
 -- ===============================
 pcall(function()
-    StarterGui:SetCore("SendNotification",{
-        Title = "Client Event Logger",
-        Text = "Tap TextBox → Copy\nMinimize button available",
-        Duration = 6
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "FishIt Scanner";
+        Text = "Tap TextBox → Copy\nMinimize button available";
+        Duration = 6;
     })
 end)
