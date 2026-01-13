@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 -- Folder target (ubah sesuai folder model/tool)
-local folder = ReplicatedStorage:WaitForChild("Models") 
+local folder = ReplicatedStorage:WaitForChild("Model") 
 
 -- ===============================
 -- GUI Setup
