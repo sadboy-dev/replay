@@ -1,45 +1,36 @@
 -- ===============================
--- FIC: Fully Independent Client
+-- FIC: Client-Only Event Logger
 -- ===============================
-
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LP = Players.LocalPlayer
+local StarterGui = game:GetService("StarterGui")
 
 -- ===============================
--- CHARACTER SETUP
+-- STATE
 -- ===============================
-local char = LP.Character or LP.CharacterAdded:Wait()
-local hrp = char:WaitForChild("HumanoidRootPart")
-local hum = char:WaitForChild("Humanoid")
-
--- ===============================
--- LOG STORAGE
--- ===============================
+local paused = false
 local logs = {}
 local buffer = {}
-local paused = false
 
--- helper: add log
+-- helper untuk add log
 local function addLog(line)
     if paused then
         table.insert(buffer,line)
     else
         table.insert(logs,line)
         box.Text = table.concat(logs,"\n")
-        box.CursorPosition = #box.Text+1
+        -- auto-scroll ke bawah
+        box.CursorPosition = #box.Text + 1
     end
 end
 
 -- ===============================
 -- GUI SETUP
 -- ===============================
-local StarterGui = game:GetService("StarterGui")
-
 local gui = Instance.new("ScreenGui")
-gui.Name = "FICReplayLogger"
+gui.Name = "ClientEventLoggerGUI"
 gui.ResetOnSpawn = false
 gui.Parent = LP:WaitForChild("PlayerGui")
 
@@ -49,13 +40,14 @@ frame.Position = UDim2.fromScale(0.05,0.1)
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.Draggable = true
+-- draggable disabled agar iOS aman
+frame.Draggable = false
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,-20,0,40)
 title.Position = UDim2.new(0,10,0,5)
-title.Text = "FIC Replay Logger (Tap & Copy)"
+title.Text = "Client Event Logger (Tap & Copy)"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
@@ -76,7 +68,7 @@ box.TextColor3 = Color3.fromRGB(220,220,220)
 box.BackgroundColor3 = Color3.fromRGB(15,15,15)
 box.BorderSizePixel = 0
 Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
-box.Text = "=== FIC REPLAY LOG ===\n"
+box.Text = "=== CLIENT EVENT LOG ===\n"
 
 -- ===============================
 -- BUTTONS
@@ -95,115 +87,58 @@ local function makeButton(txt,x)
 end
 
 local pauseBtn = makeButton("⏸ PAUSE",0.03)
-local playBtn = makeButton("▶ PLAY",0.36)
+local playBtn  = makeButton("▶ PLAY",0.36)
 local clearBtn = makeButton("🧹 CLEAR",0.69)
 
 pauseBtn.MouseButton1Click:Connect(function()
     paused = true
-    table.insert(logs,"=== PAUSED ===")
-    box.Text = table.concat(logs,"\n")
+    addLog("=== PAUSED ===")
 end)
 
 playBtn.MouseButton1Click:Connect(function()
     paused = false
-    table.insert(logs,"=== RESUMED ===")
-    for _,v in ipairs(buffer) do table.insert(logs,v) end
+    addLog("=== RESUMED ===")
+    for _,v in ipairs(buffer) do
+        addLog(v)
+    end
     buffer = {}
-    box.Text = table.concat(logs,"\n")
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
-    logs = {"=== FIC REPLAY LOG CLEARED ==="}
+    logs = {"=== CLIENT EVENT LOG CLEARED ==="}
     buffer = {}
     box.Text = table.concat(logs,"\n")
 end)
 
 -- ===============================
--- CLIENT-ONLY REPLAY CAPTURE
+-- CLIENT-ONLY EVENT CAPTURE
 -- ===============================
-local replayData = {} -- store {time,pos,anim,state}
+-- NOTE: hanya capture client-side simulated events
+-- misalnya tombol, mouse click, key press
+local UserInputService = game:GetService("UserInputService")
 
--- movement capture
-RunService.Heartbeat:Connect(function(dt)
-    local t = tick()
-    table.insert(replayData,{
-        Time = t,
-        Pos = hrp.Position,
-        Anim = nil,
-        State = hum:GetState()
-    })
-    addLog(string.format("[MOVE] [%.2f] (%.1f,%.1f,%.1f)", t, hrp.Position.X, hrp.Position.Y, hrp.Position.Z))
-end)
-
--- animation capture
-hum.AnimationPlayed:Connect(function(track)
-    local t = tick()
-    table.insert(replayData,{
-        Time = t,
-        Pos = hrp.Position,
-        Anim = track.Animation.AnimationId,
-        State = hum:GetState()
-    })
-    addLog(string.format("[ANIM] [%.2f] %s", t, track.Animation.AnimationId))
-end)
-
--- state capture
-hum.StateChanged:Connect(function(_,new)
-    local t = tick()
-    table.insert(replayData,{
-        Time = t,
-        Pos = hrp.Position,
-        Anim = nil,
-        State = new
-    })
-    addLog(string.format("[STATE] [%.2f] %s", t, tostring(new)))
-end)
-
--- ===============================
--- CLIENT-ONLY PLAYBACK FUNCTION
--- ===============================
-local playing = false
-local playIndex = 1
-local playbackSpeed = 1 -- 1 = realtime
-
-local function PlayReplay()
-    if playing then return end
-    playing = true
-    playIndex = 1
-    table.insert(logs,"\n=== REPLAY START ===")
-    box.Text = table.concat(logs,"\n")
-    
-    spawn(function()
-        while playing and playIndex <= #replayData do
-            local entry = replayData[playIndex]
-            hrp.CFrame = CFrame.new(entry.Pos)
-            if entry.Anim then
-                hum:LoadAnimation(Instance.new("Animation",hum){AnimationId = entry.Anim}):Play()
-            end
-            playIndex += 1
-            wait(0.03/playbackSpeed)
-        end
-        table.insert(logs,"=== REPLAY END ===")
-        box.Text = table.concat(logs,"\n")
-        playing = false
-    end)
-end
-
--- optional: press P to start playback
-game:GetService("UserInputService").InputBegan:Connect(function(input,gp)
+UserInputService.InputBegan:Connect(function(input,gp)
     if gp then return end
-    if input.KeyCode == Enum.KeyCode.P then
-        PlayReplay()
+    addLog(string.format("[INPUT] Key/Button pressed: %s", tostring(input.KeyCode or input.UserInputType)))
+end)
+
+-- contoh mouse button capture
+UserInputService.InputBegan:Connect(function(input,gp)
+    if gp then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        addLog("[INPUT] Mouse Button 1 Click")
+    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+        addLog("[INPUT] Mouse Button 2 Click")
     end
 end)
 
 -- ===============================
--- NOTIFICATION (iOS friendly)
+-- NOTIFICATION iOS
 -- ===============================
 pcall(function()
     StarterGui:SetCore("SendNotification",{
-        Title = "FIC Replay Logger",
-        Text = "Tap TextBox → Select All → Copy\nPress P for Playback",
+        Title = "Client Event Logger",
+        Text = "Tap TextBox → Select All → Copy\nEvents captured client-only",
         Duration = 6
     })
 end)
