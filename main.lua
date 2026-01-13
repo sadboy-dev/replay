@@ -1,11 +1,12 @@
 -- ===============================
--- FIC: Client-Only Event Logger
+-- CLIENT-ONLY EVENT LOGGER (MINIMIZE)
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
 
 -- ===============================
 -- STATE
@@ -13,18 +14,9 @@ local StarterGui = game:GetService("StarterGui")
 local paused = false
 local logs = {}
 local buffer = {}
-
--- helper untuk add log
-local function addLog(line)
-    if paused then
-        table.insert(buffer,line)
-    else
-        table.insert(logs,line)
-        box.Text = table.concat(logs,"\n")
-        -- auto-scroll ke bawah
-        box.CursorPosition = #box.Text + 1
-    end
-end
+local minimized = false
+local originalSize = UDim2.fromScale(0.9,0.8)
+local originalPos  = UDim2.fromScale(0.05,0.1)
 
 -- ===============================
 -- GUI SETUP
@@ -35,17 +27,16 @@ gui.ResetOnSpawn = false
 gui.Parent = LP:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.9,0.8)
-frame.Position = UDim2.fromScale(0.05,0.1)
+frame.Size = originalSize
+frame.Position = originalPos
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BorderSizePixel = 0
 frame.Active = true
--- draggable disabled agar iOS aman
 frame.Draggable = false
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,-20,0,40)
+title.Size = UDim2.new(1,-60,0,40) -- sisakan space untuk tombol minimize
 title.Position = UDim2.new(0,10,0,5)
 title.Text = "Client Event Logger (Tap & Copy)"
 title.TextColor3 = Color3.new(1,1,1)
@@ -92,16 +83,18 @@ local clearBtn = makeButton("🧹 CLEAR",0.69)
 
 pauseBtn.MouseButton1Click:Connect(function()
     paused = true
-    addLog("=== PAUSED ===")
+    table.insert(logs,"=== PAUSED ===")
+    box.Text = table.concat(logs,"\n")
+    box.CursorPosition = #box.Text+1
 end)
 
 playBtn.MouseButton1Click:Connect(function()
     paused = false
-    addLog("=== RESUMED ===")
-    for _,v in ipairs(buffer) do
-        addLog(v)
-    end
+    table.insert(logs,"=== RESUMED ===")
+    for _,v in ipairs(buffer) do table.insert(logs,v) end
     buffer = {}
+    box.Text = table.concat(logs,"\n")
+    box.CursorPosition = #box.Text+1
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
@@ -111,34 +104,64 @@ clearBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ===============================
--- CLIENT-ONLY EVENT CAPTURE
+-- MINIMIZE BUTTON
 -- ===============================
--- NOTE: hanya capture client-side simulated events
--- misalnya tombol, mouse click, key press
-local UserInputService = game:GetService("UserInputService")
+local minimizeBtn = Instance.new("TextButton", frame)
+minimizeBtn.Size = UDim2.new(0,40,0,32)
+minimizeBtn.Position = UDim2.new(1,-45,0,4)
+minimizeBtn.Text = "—"
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextSize = 20
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+minimizeBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0,6)
 
-UserInputService.InputBegan:Connect(function(input,gp)
-    if gp then return end
-    addLog(string.format("[INPUT] Key/Button pressed: %s", tostring(input.KeyCode or input.UserInputType)))
-end)
-
--- contoh mouse button capture
-UserInputService.InputBegan:Connect(function(input,gp)
-    if gp then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        addLog("[INPUT] Mouse Button 1 Click")
-    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-        addLog("[INPUT] Mouse Button 2 Click")
+minimizeBtn.MouseButton1Click:Connect(function()
+    if minimized then
+        -- restore
+        frame.Size = originalSize
+        frame.Position = originalPos
+        box.Visible = true
+        pauseBtn.Visible = true
+        playBtn.Visible = true
+        clearBtn.Visible = true
+        minimized = false
+    else
+        -- minimize
+        frame.Size = UDim2.new(0,200,0,40)
+        box.Visible = false
+        pauseBtn.Visible = false
+        playBtn.Visible = false
+        clearBtn.Visible = false
+        minimized = true
     end
 end)
 
 -- ===============================
--- NOTIFICATION iOS
+-- CLIENT-ONLY EVENT CAPTURE
+-- ===============================
+UserInputService.InputBegan:Connect(function(input,gp)
+    if gp then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        table.insert(logs,"[KEY] "..tostring(input.KeyCode))
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+        table.insert(logs,"[MOUSE] Left Click")
+    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+        table.insert(logs,"[MOUSE] Right Click")
+    elseif input.UserInputType == Enum.UserInputType.Touch then
+        table.insert(logs,"[TOUCH] Screen tap")
+    end
+    box.Text = table.concat(logs,"\n")
+    box.CursorPosition = #box.Text+1
+end)
+
+-- ===============================
+-- iOS NOTIFICATION
 -- ===============================
 pcall(function()
     StarterGui:SetCore("SendNotification",{
         Title = "Client Event Logger",
-        Text = "Tap TextBox → Select All → Copy\nEvents captured client-only",
+        Text = "Tap TextBox → Copy\nMinimize button available",
         Duration = 6
     })
 end)
