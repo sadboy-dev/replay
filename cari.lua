@@ -1,20 +1,32 @@
 -- ===============================
--- Safe Model/Tool Cloner GUI (Skip folder jika tidak ada)
+-- Fish Model/Tool Cloner GUI
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
 
--- Cek folder Models dan Tools
-local modelFolder = ReplicatedStorage:FindFirstChild("Modules")
+-- Fungsi aman untuk menunggu folder tanpa infinite yield
+local function safeWaitFolder(parent, name, timeout)
+    timeout = timeout or 5
+    local folder
+    local success, err = pcall(function()
+        folder = parent:WaitForChild(name, timeout)
+    end)
+    if success then return folder end
+    return nil
+end
 
+-- Target folder
+local fishFolder = safeWaitFolder(
+    safeWaitFolder(
+        safeWaitFolder(
+            safeWaitFolder(ReplicatedStorage, "Modules"), "ModelDownloader"), "Collection"), "Fish")
 
--- Jika keduanya tidak ada, hentikan
-if not modelFolder and not toolFolder then
-    warn("Folder 'Models' dan 'Tools' tidak ditemukan di ReplicatedStorage!")
+if not fishFolder then
+    warn("Folder Fish tidak ditemukan, script dihentikan.")
     return
 end
 
@@ -22,13 +34,13 @@ end
 -- GUI Setup
 -- ===============================
 local gui = Instance.new("ScreenGui")
-gui.Name = "SafeModelClonerGUI"
+gui.Name = "FishClonerGUI"
 gui.ResetOnSpawn = false
 gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.25, 0.5)
-frame.Position = UDim2.fromScale(0.7, 0.25)
+frame.Size = UDim2.fromScale(0.25, 0.6)
+frame.Position = UDim2.fromScale(0.7, 0.2)
 frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 frame.BorderSizePixel = 0
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
@@ -37,7 +49,7 @@ local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,40)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "Safe Model/Tool Cloner"
+title.Text = "Fish Model/Tool Cloner"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
@@ -54,9 +66,29 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0,6)
 
 -- ===============================
--- Fungsi buat tombol clone
+-- Fungsi rekursif untuk ambil semua model di folder
 -- ===============================
-local function createCloneButton(item)
+local function getAllModelsAndTools(folder)
+    local items = {}
+    for _, item in ipairs(folder:GetChildren()) do
+        if item:IsA("Model") or item:IsA("Tool") then
+            table.insert(items, item)
+        elseif item:IsA("Folder") then
+            local subItems = getAllModelsAndTools(item)
+            for _, sub in ipairs(subItems) do
+                table.insert(items, sub)
+            end
+        end
+    end
+    return items
+end
+
+local allItems = getAllModelsAndTools(fishFolder)
+
+-- ===============================
+-- Buat tombol untuk setiap model/tool
+-- ===============================
+for _, item in ipairs(allItems) do
     local btn = Instance.new("TextButton", scroll)
     btn.Size = UDim2.new(1,0,0,36)
     btn.Text = item.Name
@@ -67,64 +99,27 @@ local function createCloneButton(item)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
 
     btn.MouseButton1Click:Connect(function()
-        local success, clone = pcall(function()
-            return item:Clone()
-        end)
+        local clone = item:Clone()
 
-        if not success or not clone then
-            warn("Gagal clone "..item.Name)
-            return
-        end
-
-        -- Set PrimaryPart otomatis kalau model
-        if clone:IsA("Model") and not clone.PrimaryPart then
-            local firstPart = clone:FindFirstChildWhichIsA("BasePart")
-            if firstPart then
-                clone.PrimaryPart = firstPart
-            else
-                warn(clone.Name.." tidak punya part untuk PrimaryPart!")
-                return
-            end
-        end
-
-        -- Spawn ke tempat aman
         if clone:IsA("Tool") then
-            pcall(function()
-                clone.Parent = LocalPlayer:WaitForChild("Backpack")
-            end)
+            -- Clone langsung ke Backpack
+            clone.Parent = LocalPlayer.Backpack
+            print("Tool "..clone.Name.." berhasil diclone ke Backpack")
         else
-            if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
-                local charCFrame = LocalPlayer.Character.PrimaryPart.CFrame
-                pcall(function()
-                    clone.Parent = Workspace
-                    clone:SetPrimaryPartCFrame(charCFrame + Vector3.new(5,0,0))
-                end)
-            else
-                warn("Tidak dapat menentukan posisi karakter!")
-                clone.Parent = Workspace -- fallback
+            -- Model → set PrimaryPart otomatis
+            if not clone.PrimaryPart then
+                local primary = clone:FindFirstChildWhichIsA("BasePart") or clone:FindFirstChild("HumanoidRootPart")
+                if primary then
+                    clone.PrimaryPart = primary
+                else
+                    warn("Model "..clone.Name.." tidak punya BasePart, skip clone")
+                    return
+                end
             end
+            -- Spawn di workspace
+            clone.Parent = Workspace
+            clone:SetPrimaryPartCFrame(LocalPlayer.Character.PrimaryPart.CFrame + Vector3.new(5,0,0))
+            print("Model "..clone.Name.." berhasil diclone ke Workspace")
         end
     end)
-end
-
--- ===============================
--- Buat tombol untuk Models
--- ===============================
-if modelFolder then
-    for _, item in ipairs(modelFolder:GetChildren()) do
-        if item:IsA("Model") then
-            createCloneButton(item)
-        end
-    end
-end
-
--- ===============================
--- Buat tombol untuk Tools
--- ===============================
-if toolFolder then
-    for _, item in ipairs(toolFolder:GetChildren()) do
-        if item:IsA("Tool") then
-            createCloneButton(item)
-        end
-    end
 end
