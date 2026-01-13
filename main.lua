@@ -1,11 +1,12 @@
 -- ===============================
--- FishIt FULL Scanner + GUI Read-Only (TextBox)
+-- FishIt FULL Scanner + GUI Read-Only (Stable)
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local RS = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
+local StarterGui = game:GetService("StarterGui")
 
 -- ===============================
 -- SCAN REPLICATEDSTORAGE
@@ -57,15 +58,15 @@ title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 
 -- ===============================
--- TEXTBOX (READ-ONLY)
+-- TEXTBOX (READ-ONLY & SCROLLABLE)
 -- ===============================
 local box = Instance.new("TextBox", frame)
-box.Position = UDim2.new(0, 10, 0, 50)
-box.Size = UDim2.new(1, -20, 1, -100)
+box.Position = UDim2.new(0,10,0,50)
+box.Size = UDim2.new(1,-20,1,-100)
 box.MultiLine = true
 box.ClearTextOnFocus = false
 box.TextWrapped = false
-box.TextEditable = false   -- READ ONLY
+box.TextEditable = false   -- read-only
 box.TextXAlignment = Enum.TextXAlignment.Left
 box.TextYAlignment = Enum.TextYAlignment.Top
 box.Font = Enum.Font.Code
@@ -99,17 +100,14 @@ local clearBtn = makeButton("🧹 CLEAR",0.69)
 
 pauseBtn.MouseButton1Click:Connect(function()
     box.Text = box.Text .. "\n[PAUSE CLICKED]"
-    box.CursorPosition = #box.Text+1
 end)
 
 playBtn.MouseButton1Click:Connect(function()
     box.Text = box.Text .. "\n[PLAY CLICKED]"
-    box.CursorPosition = #box.Text+1
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
     box.Text = finalText
-    box.CursorPosition = #box.Text+1
 end)
 
 -- ===============================
@@ -148,9 +146,9 @@ end)
 -- iOS Notification
 -- ===============================
 pcall(function()
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "FishIt Scanner";
-        Text = "Tap TextBox → Select All → Copy\nMinimize button available";
-        Duration = 6;
+    StarterGui:SetCore("SendNotification", {
+        Title = "FishIt Scanner",
+        Text = "Tap TextBox → Select All → Copy\nMinimize button available",
+        Duration = 6,
     })
 end)
