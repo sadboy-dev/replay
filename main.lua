@@ -1,5 +1,5 @@
 -- ===============================
--- FishIt FULL Scanner + GUI Read-Only (iOS Friendly)
+-- FishIt FULL Scanner + GUI Read-Only (TextBox)
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -57,29 +57,25 @@ title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 
 -- ===============================
--- SCROLLING FRAME + LABEL
+-- TEXTBOX (READ-ONLY)
 -- ===============================
-local scroll = Instance.new("ScrollingFrame", frame)
-scroll.Position = UDim2.new(0,10,0,50)
-scroll.Size = UDim2.new(1,-20,1,-100)
-scroll.BackgroundTransparency = 1
-scroll.BorderSizePixel = 0
-scroll.CanvasSize = UDim2.new(0,0,0,0)
-scroll.ScrollBarThickness = 10
-scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-
-local textLabel = Instance.new("TextLabel", scroll)
-textLabel.Size = UDim2.new(1,0,0,0)
-textLabel.Position = UDim2.new(0,0,0,0)
-textLabel.BackgroundTransparency = 1
-textLabel.Font = Enum.Font.Code
-textLabel.TextSize = 13
-textLabel.TextColor3 = Color3.fromRGB(220,220,220)
-textLabel.TextXAlignment = Enum.TextXAlignment.Left
-textLabel.TextYAlignment = Enum.TextYAlignment.Top
-textLabel.TextWrapped = true
-textLabel.Text = finalText
-textLabel.AutomaticSize = Enum.AutomaticSize.Y
+local box = Instance.new("TextBox", frame)
+box.Position = UDim2.new(0, 10, 0, 50)
+box.Size = UDim2.new(1, -20, 1, -100)
+box.MultiLine = true
+box.ClearTextOnFocus = false
+box.TextWrapped = false
+box.TextEditable = false   -- READ ONLY
+box.TextXAlignment = Enum.TextXAlignment.Left
+box.TextYAlignment = Enum.TextYAlignment.Top
+box.Font = Enum.Font.Code
+box.TextSize = 13
+box.TextColor3 = Color3.fromRGB(220,220,220)
+box.BackgroundColor3 = Color3.fromRGB(15,15,15)
+box.BorderSizePixel = 0
+box.Text = finalText
+box.ScrollingEnabled = true
+Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
 
 -- ===============================
 -- BUTTONS
@@ -102,18 +98,18 @@ local playBtn  = makeButton("▶ PLAY",0.36)
 local clearBtn = makeButton("🧹 CLEAR",0.69)
 
 pauseBtn.MouseButton1Click:Connect(function()
-    textLabel.Text = textLabel.Text .. "\n[PAUSE CLICKED]"
-    scroll.CanvasPosition = Vector2.new(0, scroll.CanvasSize.Y.Offset)
+    box.Text = box.Text .. "\n[PAUSE CLICKED]"
+    box.CursorPosition = #box.Text+1
 end)
 
 playBtn.MouseButton1Click:Connect(function()
-    textLabel.Text = textLabel.Text .. "\n[PLAY CLICKED]"
-    scroll.CanvasPosition = Vector2.new(0, scroll.CanvasSize.Y.Offset)
+    box.Text = box.Text .. "\n[PLAY CLICKED]"
+    box.CursorPosition = #box.Text+1
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
-    textLabel.Text = finalText
-    scroll.CanvasPosition = Vector2.new(0,0)
+    box.Text = finalText
+    box.CursorPosition = #box.Text+1
 end)
 
 -- ===============================
@@ -133,14 +129,14 @@ minimizeBtn.MouseButton1Click:Connect(function()
     if minimized then
         frame.Size = originalSize
         frame.Position = originalPos
-        scroll.Visible = true
+        box.Visible = true
         pauseBtn.Visible = true
         playBtn.Visible = true
         clearBtn.Visible = true
         minimized = false
     else
         frame.Size = UDim2.new(0,200,0,40)
-        scroll.Visible = false
+        box.Visible = false
         pauseBtn.Visible = false
         playBtn.Visible = false
         clearBtn.Visible = false
@@ -149,22 +145,12 @@ minimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ===============================
--- AUTO SCROLL FUNCTION
--- ===============================
-local function appendText(line)
-    textLabel.Text = textLabel.Text .. "\n" .. line
-    task.defer(function()
-        scroll.CanvasPosition = Vector2.new(0, scroll.CanvasSize.Y.Offset)
-    end)
-end
-
--- ===============================
 -- iOS Notification
 -- ===============================
 pcall(function()
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "FishIt Scanner";
-        Text = "Tap & hold text → Copy\nMinimize button available";
+        Text = "Tap TextBox → Select All → Copy\nMinimize button available";
         Duration = 6;
     })
 end)
