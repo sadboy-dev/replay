@@ -1,145 +1,96 @@
 -- ===============================
--- Inventory + Clone Fish GUI
+-- GUI Inventory Fish Viewer
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
--- Fungsi aman untuk waitForChild dengan timeout
-local function waitForChildSafe(parent, childName, timeout)
-    local startTime = tick()
-    while not parent:FindFirstChild(childName) and tick() - startTime < (timeout or 5) do
-        task.wait(0.1)
+-- ===============================
+-- Ambil data fish dari ReplicatedStorage
+-- ===============================
+local GlobalFav = {
+    FishIdToName = {},
+    FishNameToId = {},
+    FishIdToTier = {},
+    FishNames = {}
+}
+
+for _, item in pairs(ReplicatedStorage:WaitForChild("Items"):GetChildren()) do
+    local ok, data = pcall(require, item)
+    if ok and data.Data and data.Data.Type == "Fish" then
+        local id = data.Data.Id
+        local name = data.Data.Name
+        local tier = data.Data.Tier
+        GlobalFav.FishIdToName[id] = name
+        GlobalFav.FishNameToId[name] = id
+        GlobalFav.FishIdToTier[id] = tier
+        table.insert(GlobalFav.FishNames, name)
     end
-    return parent:FindFirstChild(childName)
 end
 
--- Ambil inventory GUI dengan aman
-local InventoryGUI = waitForChildSafe(LocalPlayer:WaitForChild("PlayerGui"), "Inventory", 5)
-if not InventoryGUI then
-    warn("Inventory GUI not found!")
-    return
-end
-
-local MainInventory = waitForChildSafe(InventoryGUI, "Main", 5)
-if not MainInventory then
-    warn("Inventory Main frame not found!")
-    return
-end
+table.sort(GlobalFav.FishNames)
 
 -- ===============================
 -- GUI Setup
 -- ===============================
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "InventoryCloneGUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local gui = Instance.new("ScreenGui")
+gui.Name = "FishViewerGUI"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.fromScale(0.25, 0.5)
-Frame.Position = UDim2.fromScale(0.7, 0.25)
-Frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
-Instance.new("UICorner", Frame).CornerRadius = UDim.new(0,12)
-Frame.Active = true
-Frame.Draggable = true
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.fromScale(0.3, 0.6)
+frame.Position = UDim2.fromScale(0.05, 0.2)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,0,0,40)
-Title.Position = UDim2.new(0,0,0,0)
-Title.BackgroundTransparency = 1
-Title.Text = "Inventory Clone"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
-Title.Parent = Frame
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,30)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundTransparency = 1
+title.Text = "All Fish Viewer"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
 
-local Scroll = Instance.new("ScrollingFrame")
-Scroll.Size = UDim2.new(1,-20,1,-50)
-Scroll.Position = UDim2.new(0,10,0,45)
-Scroll.BackgroundTransparency = 1
-Scroll.ScrollBarThickness = 6
-Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Scroll.Parent = Frame
+-- Scrolling Frame untuk list fish
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Size = UDim2.new(1,-20,1,-40)
+scroll.Position = UDim2.new(0,10,0,35)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 6
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
-local Layout = Instance.new("UIListLayout", Scroll)
-Layout.SortOrder = Enum.SortOrder.LayoutOrder
-Layout.Padding = UDim.new(0,6)
+local layout = Instance.new("UIListLayout", scroll)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0,4)
 
 -- ===============================
--- Function: Clone Item
+-- Tambahkan tombol untuk setiap fish
 -- ===============================
-local function cloneItem(item)
-    if item:IsA("Tool") then
-        -- clone ke backpack
-        local clone = item:Clone()
-        clone.Parent = LocalPlayer.Backpack
-        print("Cloned Tool:", clone.Name)
-    elseif item:IsA("Model") then
-        -- clone model ke workspace di depan player
-        local clone = item:Clone()
-        local char = LocalPlayer.Character
-        if char and char.PrimaryPart then
-            local offset = Vector3.new(5,0,0)
-            clone.Parent = workspace
-            -- set primary part kalau belum ada
-            if not clone.PrimaryPart then
-                for _, part in ipairs(clone:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        clone.PrimaryPart = part
-                        break
-                    end
-                end
-            end
-            if clone.PrimaryPart then
-                clone:SetPrimaryPartCFrame(char.PrimaryPart.CFrame + offset)
-                print("Cloned Model:", clone.Name)
-            else
-                warn("Model has no BasePart to set as PrimaryPart:", clone.Name)
-            end
-        end
-    else
-        warn("Unsupported item type:", item.ClassName)
-    end
+for _, fishName in ipairs(GlobalFav.FishNames) do
+    local fishId = GlobalFav.FishNameToId[fishName]
+    local tier = GlobalFav.FishIdToTier[fishId]
+
+    local btn = Instance.new("TextButton", scroll)
+    btn.Size = UDim2.new(1,0,0,30)
+    btn.Text = string.format("%s | ID: %s | Tier: %s", fishName, tostring(fishId), tostring(tier))
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+    -- Saat klik tombol (untuk sekarang hanya print info)
+    btn.MouseButton1Click:Connect(function()
+        print("Clicked fish:")
+        print("Name:", fishName)
+        print("ID:", fishId)
+        print("Tier:", tier)
+    end)
 end
-
--- ===============================
--- Populate GUI with Inventory
--- ===============================
-local function refreshInventory()
-    -- hapus semua button dulu
-    for _, child in ipairs(Scroll:GetChildren()) do
-        if child:IsA("TextButton") then
-            child:Destroy()
-        end
-    end
-
-    -- loop inventory tools/items
-    for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1,0,0,36)
-        btn.Text = item.Name .. " | " .. item.ClassName
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 14
-        btn.TextColor3 = Color3.new(1,1,1)
-        btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
-        btn.Parent = Scroll
-
-        btn.MouseButton1Click:Connect(function()
-            cloneItem(item)
-        end)
-    end
-end
-
-refreshInventory()
-
--- ===============================
--- Auto Refresh Inventory
--- ===============================
-LocalPlayer.Backpack.ChildAdded:Connect(refreshInventory)
-LocalPlayer.Backpack.ChildRemoved:Connect(refreshInventory)
