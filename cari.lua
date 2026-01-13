@@ -1,12 +1,11 @@
 -- ===============================
--- Inventory Cloner GUI
+-- Inventory GUI Cloner (From GUI)
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
 
 -- ===============================
 -- GUI Setup
@@ -17,8 +16,8 @@ gui.ResetOnSpawn = false
 gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.3, 0.5)
-frame.Position = UDim2.fromScale(0.35, 0.25)
+frame.Size = UDim2.fromScale(0.35, 0.55)
+frame.Position = UDim2.fromScale(0.32, 0.22)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -49,15 +48,15 @@ layout.Padding = UDim.new(0,6)
 -- Function to clone items
 -- ===============================
 local function cloneItem(item)
+    if not item then return end
     local clone = item:Clone()
-    if item:IsA("Tool") then
+    if clone:IsA("Tool") then
         clone.Parent = LocalPlayer.Backpack
-    elseif item:IsA("Model") then
-        -- Set PrimaryPart if not exist
+    elseif clone:IsA("Model") then
         if not clone.PrimaryPart then
             clone.PrimaryPart = clone:FindFirstChildWhichIsA("BasePart")
         end
-        if clone.PrimaryPart then
+        if clone.PrimaryPart and LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
             clone:SetPrimaryPartCFrame(LocalPlayer.Character.PrimaryPart.CFrame + Vector3.new(5,0,0))
         end
         clone.Parent = Workspace
@@ -65,24 +64,40 @@ local function cloneItem(item)
 end
 
 -- ===============================
--- List Inventory Items
+-- List Inventory Items from GUI
 -- ===============================
 local function listInventory()
     scroll:ClearAllChildren()
-    for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do
-        if item:IsA("Tool") or item:IsA("Model") then
-            local btn = Instance.new("TextButton", scroll)
-            btn.Size = UDim2.new(1,0,0,36)
-            btn.Text = item.Name.." ["..item.ClassName.."]"
-            btn.Font = Enum.Font.Gotham
-            btn.TextSize = 14
-            btn.TextColor3 = Color3.new(1,1,1)
-            btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
 
-            btn.MouseButton1Click:Connect(function()
-                cloneItem(item)
-            end)
+    local invGUI = LocalPlayer.PlayerGui:FindFirstChild("Inventory")
+    if not invGUI then return end
+
+    local mainFrame = invGUI:FindFirstChild("Main")
+    if not mainFrame then return end
+
+    local itemsFolder = mainFrame:FindFirstChild("Items") or mainFrame:FindFirstChildWhichIsA("Frame")
+    if not itemsFolder then return end
+
+    for _, slot in ipairs(itemsFolder:GetChildren()) do
+        if slot:IsA("Frame") then
+            local inner = slot:FindFirstChild("Inner")
+            if inner then
+                local itemClone = inner:FindFirstChildWhichIsA("Model") or inner:FindFirstChildWhichIsA("Tool")
+                if itemClone then
+                    local btn = Instance.new("TextButton", scroll)
+                    btn.Size = UDim2.new(1,0,0,36)
+                    btn.Text = itemClone.Name.." ["..itemClone.ClassName.."]"
+                    btn.Font = Enum.Font.Gotham
+                    btn.TextSize = 14
+                    btn.TextColor3 = Color3.new(1,1,1)
+                    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+                    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+                    btn.MouseButton1Click:Connect(function()
+                        cloneItem(itemClone)
+                    end)
+                end
+            end
         end
     end
 end
