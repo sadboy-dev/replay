@@ -9,8 +9,10 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Folder target remotes
 -- Ganti sesuai path remote yang ingin dipantau
-local RemotesFolder = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net"):WaitForChild("RE")
-
+local RemotesFolder = ReplicatedStorage:WaitForChild("Packages")
+    :WaitForChild("_Index")
+    :WaitForChild("sleitnick_net@0.2.0")
+    :WaitForChild("RE") -- <-- langsung folder RE, tanpa net
 -- ===============================
 -- GUI Setup
 -- ===============================
