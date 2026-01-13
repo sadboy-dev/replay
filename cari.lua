@@ -1,5 +1,5 @@
 -- ===============================
--- Pirate Chest / PlacePressureItem GUI (Input2 Optional)
+-- Pirate Chest / PlacePressureItem GUI (Input2 Optional + Log)
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -17,8 +17,8 @@ gui.ResetOnSpawn = false
 gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.3, 0.2)
-frame.Position = UDim2.fromScale(0.35, 0.3)
+frame.Size = UDim2.fromScale(0.35, 0.5)
+frame.Position = UDim2.fromScale(0.32, 0.25)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -68,6 +68,25 @@ executeBtn.BackgroundColor3 = Color3.fromRGB(45, 150, 45)
 executeBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", executeBtn).CornerRadius = UDim.new(0,8)
 
+-- Log Box
+local logBox = Instance.new("TextBox", frame)
+logBox.Size = UDim2.new(0.9,0,0,150)
+logBox.Position = UDim2.new(0.05,0,0,170)
+logBox.MultiLine = true
+logBox.ClearTextOnFocus = false
+logBox.TextWrapped = true
+logBox.TextEditable = false
+logBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+logBox.TextColor3 = Color3.new(1,1,1)
+logBox.Text = "=== Remote Log ===\n"
+Instance.new("UICorner", logBox).CornerRadius = UDim.new(0,6)
+
+-- Helper function untuk menambah log
+local function addLog(msg)
+    logBox.Text = logBox.Text .. msg .. "\n"
+    logBox.CursorPosition = #logBox.Text+1
+end
+
 -- ===============================
 -- Button Logic
 -- ===============================
@@ -76,9 +95,10 @@ executeBtn.MouseButton1Click:Connect(function()
     local input2 = input2Box.Text
 
     if input1 == "" then
+        addLog("[ERROR] Input1 (Remote Name) is required!")
         StarterGui:SetCore("SendNotification", {
             Title = "Execute Remote",
-            Text = "Input1 (Remote Name) is required!",
+            Text = "Input1 is required!",
             Duration = 3
         })
         return
@@ -89,41 +109,34 @@ executeBtn.MouseButton1Click:Connect(function()
         return ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index")
             :WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
     end)
-    if not success then return end
+    if not success then
+        addLog("[ERROR] Net folder not found!")
+        return
+    end
 
     -- Ambil remote
     local remote = NetFolder:FindFirstChild(input1)
     if remote and remote:IsA("RemoteEvent") then
         local fired = false
-        pcall(function()
+        local status, err = pcall(function()
             if input2 == "" then
-                -- Fire tanpa argumen
                 remote:FireServer()
-                fired = true
             else
-                -- Fire dengan argumen
                 local n = tonumber(input2)
                 if n then
                     remote:FireServer(n)
                 else
                     remote:FireServer(input2)
                 end
-                fired = true
             end
+            fired = true
         end)
-
         if fired then
-            StarterGui:SetCore("SendNotification", {
-                Title = "Execute Remote",
-                Text = input1.." fired"..(input2 ~= "" and " with argument: "..input2 or ""),
-                Duration = 3
-            })
+            addLog("[SUCCESS] "..input1.." fired"..(input2 ~= "" and " with argument: "..input2 or ""))
+        else
+            addLog("[ERROR] Failed to fire "..input1.." | "..(err or "unknown error"))
         end
     else
-        StarterGui:SetCore("SendNotification", {
-            Title = "Execute Remote",
-            Text = "Remote "..input1.." not found!",
-            Duration = 3
-        })
+        addLog("[ERROR] Remote "..input1.." not found!")
     end
 end)
