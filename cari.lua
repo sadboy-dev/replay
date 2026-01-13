@@ -1,11 +1,25 @@
 -- ===============================
--- GUI Inventory Fish Viewer
+-- Fish Viewer + Clone to Inventory
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+
+-- ===============================
+-- Tier Mapping
+-- ===============================
+local TierNames = {
+    [1] = "Biasa",
+    [2] = "Tidak Biasa",
+    [3] = "Langka",
+    [4] = "Epik",
+    [5] = "Legendaris",
+    [6] = "Mitos",
+    [7] = "Rahasia"
+}
 
 -- ===============================
 -- Ambil data fish dari ReplicatedStorage
@@ -58,7 +72,6 @@ title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
 
--- Scrolling Frame untuk list fish
 local scroll = Instance.new("ScrollingFrame", frame)
 scroll.Size = UDim2.new(1,-20,1,-40)
 scroll.Position = UDim2.new(0,10,0,35)
@@ -75,22 +88,37 @@ layout.Padding = UDim.new(0,4)
 -- ===============================
 for _, fishName in ipairs(GlobalFav.FishNames) do
     local fishId = GlobalFav.FishNameToId[fishName]
-    local tier = GlobalFav.FishIdToTier[fishId]
+    local tier = TierNames[GlobalFav.FishIdToTier[fishId]] or "Unknown"
 
     local btn = Instance.new("TextButton", scroll)
     btn.Size = UDim2.new(1,0,0,30)
-    btn.Text = string.format("%s | ID: %s | Tier: %s", fishName, tostring(fishId), tostring(tier))
+    btn.Text = string.format("%s | ID: %s | Tier: %s", fishName, tostring(fishId), tier)
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 14
     btn.TextColor3 = Color3.new(1,1,1)
     btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
 
-    -- Saat klik tombol (untuk sekarang hanya print info)
     btn.MouseButton1Click:Connect(function()
         print("Clicked fish:")
         print("Name:", fishName)
         print("ID:", fishId)
         print("Tier:", tier)
+
+        -- ===============================
+        -- Clone fish ke inventory/backpack
+        -- ===============================
+        local fishModule = ReplicatedStorage.Items:FindFirstChild(fishName)
+        if fishModule then
+            local ok, fishData = pcall(require, fishModule)
+            if ok then
+                local cloneFish = Instance.new("Folder")
+                cloneFish.Name = fishName
+                cloneFish.Parent = Backpack
+                print(fishName .. " berhasil di-clone ke Backpack!")
+            end
+        else
+            warn("Fish module tidak ditemukan:", fishName)
+        end
     end)
 end
