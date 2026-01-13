@@ -1,5 +1,5 @@
 -- ===============================
--- Model/Tool Cloner GUI (Aman)
+-- Safe Model/Tool Cloner GUI
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -8,8 +8,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 
--- Folder target (ubah sesuai folder model/tool)
-local folder = ReplicatedStorage:WaitForChild("Models") -- ganti sesuai foldermu
+-- Folder target (gunakan folder bebas, jangan _Index/Packages)
+local folder = ReplicatedStorage:FindFirstChild("Models")
+if not folder then
+    warn("Folder 'Models' tidak ditemukan di ReplicatedStorage!")
+    return
+end
 
 -- ===============================
 -- GUI Setup
@@ -30,7 +34,7 @@ local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,40)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "Model/Tool Cloner (Safe)"
+title.Text = "Safe Model/Tool Cloner"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
@@ -61,30 +65,43 @@ for _, item in ipairs(folder:GetChildren()) do
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
 
         btn.MouseButton1Click:Connect(function()
-            local clone = item:Clone()
-            if clone:IsA("Tool") then
-                clone.Parent = LocalPlayer.Backpack
-            else
-                -- Aman: set PrimaryPart jika belum ada
-                if not clone.PrimaryPart then
-                    local firstPart = clone:FindFirstChildWhichIsA("BasePart")
-                    if firstPart then
-                        clone.PrimaryPart = firstPart
-                    else
-                        warn("Model "..clone.Name.." tidak punya BasePart. Tidak bisa spawn.")
-                        return
-                    end
-                end
+            local success, clone = pcall(function()
+                return item:Clone()
+            end)
 
-                clone.Parent = Workspace
+            if not success or not clone then
+                warn("Gagal clone "..item.Name)
+                return
+            end
 
-                -- spawn di samping player
-                if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
-                    local offset = Vector3.new(5,0,0)
-                    clone:SetPrimaryPartCFrame(CFrame.new(LocalPlayer.Character.PrimaryPart.Position + offset))
+            -- Set PrimaryPart otomatis kalau model
+            if clone:IsA("Model") and not clone.PrimaryPart then
+                local firstPart = clone:FindFirstChildWhichIsA("BasePart")
+                if firstPart then
+                    clone.PrimaryPart = firstPart
                 else
-                    -- jika tidak ada karakter, spawn di asal world
-                    clone:SetPrimaryPartCFrame(CFrame.new(Vector3.new(0,5,0)))
+                    warn(clone.Name.." tidak punya part untuk PrimaryPart!")
+                    return
+                end
+            end
+
+            -- Spawn ke tempat aman
+            if clone:IsA("Tool") then
+                -- Tools bisa langsung ke Backpack
+                pcall(function()
+                    clone.Parent = LocalPlayer:WaitForChild("Backpack")
+                end)
+            else
+                -- Model ke Workspace, offset sedikit dari karakter
+                if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
+                    local charCFrame = LocalPlayer.Character.PrimaryPart.CFrame
+                    pcall(function()
+                        clone.Parent = Workspace
+                        clone:SetPrimaryPartCFrame(charCFrame + Vector3.new(5,0,0))
+                    end)
+                else
+                    warn("Tidak dapat menentukan posisi karakter!")
+                    clone.Parent = Workspace -- fallback
                 end
             end
         end)
