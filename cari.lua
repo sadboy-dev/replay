@@ -1,17 +1,25 @@
 -- ===============================
--- Fish Viewer + Clone to Inventory
+-- Fish Cloner GUI
 -- ===============================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
-local Backpack = LocalPlayer:WaitForChild("Backpack")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- RemoteEvent untuk menambahkan fish ke inventory
+local FishCaught = ReplicatedStorage:WaitForChild("Packages")
+    :WaitForChild("_Index")
+    :WaitForChild("sleitnick_net@0.2.0")
+    :WaitForChild("net")
+    :WaitForChild("RE")
+    :WaitForChild("FishCaught")
 
 -- ===============================
 -- Tier Mapping
 -- ===============================
-local TierNames = {
+local TierMap = {
     [1] = "Biasa",
     [2] = "Tidak Biasa",
     [3] = "Langka",
@@ -22,41 +30,35 @@ local TierNames = {
 }
 
 -- ===============================
--- Ambil data fish dari ReplicatedStorage
+-- Ambil semua fish dari ReplicatedStorage
 -- ===============================
-local GlobalFav = {
-    FishIdToName = {},
-    FishNameToId = {},
-    FishIdToTier = {},
-    FishNames = {}
-}
+local FishList = {}
 
-for _, item in pairs(ReplicatedStorage:WaitForChild("Items"):GetChildren()) do
+for _, item in pairs(ReplicatedStorage.Items:GetChildren()) do
     local ok, data = pcall(require, item)
     if ok and data.Data and data.Data.Type == "Fish" then
-        local id = data.Data.Id
-        local name = data.Data.Name
-        local tier = data.Data.Tier
-        GlobalFav.FishIdToName[id] = name
-        GlobalFav.FishNameToId[name] = id
-        GlobalFav.FishIdToTier[id] = tier
-        table.insert(GlobalFav.FishNames, name)
+        table.insert(FishList, {
+            Id = data.Data.Id,
+            Name = data.Data.Name,
+            Tier = TierMap[data.Data.Tier] or "Unknown"
+        })
     end
 end
 
-table.sort(GlobalFav.FishNames)
+-- Sort berdasarkan nama
+table.sort(FishList, function(a,b) return a.Name < b.Name end)
 
 -- ===============================
 -- GUI Setup
 -- ===============================
 local gui = Instance.new("ScreenGui")
-gui.Name = "FishViewerGUI"
+gui.Name = "FishClonerGUI"
 gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.Parent = PlayerGui
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.3, 0.6)
-frame.Position = UDim2.fromScale(0.05, 0.2)
+frame.Size = UDim2.fromScale(0.25, 0.5)
+frame.Position = UDim2.fromScale(0.7, 0.25)
 frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -64,35 +66,32 @@ frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,30)
+title.Size = UDim2.new(1,0,0,40)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "All Fish Viewer"
+title.Text = "Fish Cloner"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
 
 local scroll = Instance.new("ScrollingFrame", frame)
-scroll.Size = UDim2.new(1,-20,1,-40)
-scroll.Position = UDim2.new(0,10,0,35)
+scroll.Size = UDim2.new(1,-20,1,-50)
+scroll.Position = UDim2.new(0,10,0,45)
 scroll.BackgroundTransparency = 1
 scroll.ScrollBarThickness = 6
 scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
 local layout = Instance.new("UIListLayout", scroll)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0,4)
+layout.Padding = UDim.new(0,6)
 
 -- ===============================
--- Tambahkan tombol untuk setiap fish
+-- Tambahkan button untuk setiap fish
 -- ===============================
-for _, fishName in ipairs(GlobalFav.FishNames) do
-    local fishId = GlobalFav.FishNameToId[fishName]
-    local tier = TierNames[GlobalFav.FishIdToTier[fishId]] or "Unknown"
-
+for _, fish in ipairs(FishList) do
     local btn = Instance.new("TextButton", scroll)
-    btn.Size = UDim2.new(1,0,0,30)
-    btn.Text = string.format("%s | ID: %s | Tier: %s", fishName, tostring(fishId), tier)
+    btn.Size = UDim2.new(1,0,0,36)
+    btn.Text = string.format("%s | ID: %s | Tier: %s", fish.Name, fish.Id, fish.Tier)
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 14
     btn.TextColor3 = Color3.new(1,1,1)
@@ -100,25 +99,25 @@ for _, fishName in ipairs(GlobalFav.FishNames) do
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
 
     btn.MouseButton1Click:Connect(function()
-        print("Clicked fish:")
-        print("Name:", fishName)
-        print("ID:", fishId)
-        print("Tier:", tier)
+        print("=== Cloning Fish ===")
+        print("Name:", fish.Name)
+        print("ID:", fish.Id)
+        print("Tier:", fish.Tier)
 
-        -- ===============================
-        -- Clone fish ke inventory/backpack
-        -- ===============================
-        local fishModule = ReplicatedStorage.Items:FindFirstChild(fishName)
-        if fishModule then
-            local ok, fishData = pcall(require, fishModule)
-            if ok then
-                local cloneFish = Instance.new("Folder")
-                cloneFish.Name = fishName
-                cloneFish.Parent = Backpack
-                print(fishName .. " berhasil di-clone ke Backpack!")
-            end
+        -- Fire server supaya fish masuk inventory
+        local success, err = pcall(function()
+            FishCaught:FireServer({
+                Shiny = false,
+                Weight = math.random(1,10)/2,
+                Id = fish.Id
+            })
+        end)
+
+        if success then
+            print(fish.Name .. " berhasil dikirim ke inventory!")
         else
-            warn("Fish module tidak ditemukan:", fishName)
+            warn("Gagal menambahkan fish:", err)
         end
     end)
 end
+
