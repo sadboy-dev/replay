@@ -19,16 +19,18 @@ local function safeWaitFolder(parent, name, timeout)
     return nil
 end
 
--- Target folder
-local fishFolder = safeWaitFolder(
-    safeWaitFolder(
-        safeWaitFolder(
-            safeWaitFolder(ReplicatedStorage, "Modules"), "ModelDownloader"), "Collection"), "Fish")
+-- Target folder: Modules.ModelDownloader.Collection.Fish
+local modulesFolder = safeWaitFolder(ReplicatedStorage, "Modules")
+if not modulesFolder then warn("Modules tidak ditemukan") return end
 
-if not fishFolder then
-    warn("Folder Fish tidak ditemukan, script dihentikan.")
-    return
-end
+local modelDownloader = safeWaitFolder(modulesFolder, "ModelDownloader")
+if not modelDownloader then warn("ModelDownloader tidak ditemukan") return end
+
+local collection = safeWaitFolder(modelDownloader, "Collection")
+if not collection then warn("Collection tidak ditemukan") return end
+
+local fishFolder = safeWaitFolder(collection, "Fish")
+if not fishFolder then warn("Folder Fish tidak ditemukan") return end
 
 -- ===============================
 -- GUI Setup
@@ -43,6 +45,8 @@ frame.Size = UDim2.fromScale(0.25, 0.6)
 frame.Position = UDim2.fromScale(0.7, 0.2)
 frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
 local title = Instance.new("TextLabel", frame)
@@ -66,7 +70,7 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0,6)
 
 -- ===============================
--- Fungsi rekursif untuk ambil semua model di folder
+-- Fungsi rekursif untuk ambil semua model dan tool
 -- ===============================
 local function getAllModelsAndTools(folder)
     local items = {}
@@ -100,13 +104,11 @@ for _, item in ipairs(allItems) do
 
     btn.MouseButton1Click:Connect(function()
         local clone = item:Clone()
-
         if clone:IsA("Tool") then
-            -- Clone langsung ke Backpack
             clone.Parent = LocalPlayer.Backpack
-            print("Tool "..clone.Name.." berhasil diclone ke Backpack")
+            print("Tool "..clone.Name.." diclone ke Backpack")
         else
-            -- Model → set PrimaryPart otomatis
+            -- Set PrimaryPart otomatis
             if not clone.PrimaryPart then
                 local primary = clone:FindFirstChildWhichIsA("BasePart") or clone:FindFirstChild("HumanoidRootPart")
                 if primary then
@@ -116,10 +118,9 @@ for _, item in ipairs(allItems) do
                     return
                 end
             end
-            -- Spawn di workspace
             clone.Parent = Workspace
             clone:SetPrimaryPartCFrame(LocalPlayer.Character.PrimaryPart.CFrame + Vector3.new(5,0,0))
-            print("Model "..clone.Name.." berhasil diclone ke Workspace")
+            print("Model "..clone.Name.." diclone ke Workspace")
         end
     end)
 end
