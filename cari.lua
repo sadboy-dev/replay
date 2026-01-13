@@ -1,126 +1,149 @@
--- ===============================
--- Fish Model/Tool Cloner GUI
--- ===============================
+-- =====================================================
+-- Fish + Enchant Stone Fake Tool Cloner GUI (CLIENT ONLY)
+-- =====================================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 
+-- SERVICES
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- Fungsi aman untuk menunggu folder tanpa infinite yield
-local function safeWaitFolder(parent, name, timeout)
-    timeout = timeout or 5
-    local folder
-    local success, err = pcall(function()
-        folder = parent:WaitForChild(name, timeout)
-    end)
-    if success then return folder end
-    return nil
+-- =====================================================
+-- SAFE FIND PATH (NO INFINITE YIELD)
+-- =====================================================
+local function safePath(root, pathTable)
+    local current = root
+    for _, name in ipairs(pathTable) do
+        current = current and current:FindFirstChild(name)
+        if not current then return nil end
+    end
+    return current
 end
 
--- Target folder: Modules.ModelDownloader.Collection.Fish
-local modulesFolder = safeWaitFolder(ReplicatedStorage, "Modules")
-if not modulesFolder then warn("Modules tidak ditemukan") return end
+-- SOURCE FOLDERS
+local FishFolder = safePath(ReplicatedStorage, {
+    "Modules","ModelDownloader","Collection","Fish"
+})
 
-local modelDownloader = safeWaitFolder(modulesFolder, "ModelDownloader")
-if not modelDownloader then warn("ModelDownloader tidak ditemukan") return end
+local EnchantFolder = safePath(ReplicatedStorage, {
+    "Modules","ModelDownloader","Collection","Enchant Stones","Enchant Stone"
+})
 
-local collection = safeWaitFolder(modelDownloader, "Collection")
-if not collection then warn("Collection tidak ditemukan") return end
+-- =====================================================
+-- COLLECT MODELS RECURSIVE
+-- =====================================================
+local function collectModels(folder, list)
+    for _, v in ipairs(folder:GetChildren()) do
+        if v:IsA("Model") then
+            table.insert(list, v)
+        elseif v:IsA("Folder") then
+            collectModels(v, list)
+        end
+    end
+end
 
-local fishFolder = safeWaitFolder(collection, "Fish")
-if not fishFolder then warn("Folder Fish tidak ditemukan") return end
+local AllModels = {}
 
--- ===============================
--- GUI Setup
--- ===============================
+if FishFolder then
+    collectModels(FishFolder, AllModels)
+end
+
+if EnchantFolder then
+    collectModels(EnchantFolder, AllModels)
+end
+
+if #AllModels == 0 then
+    warn("Tidak ada model Fish / Enchant Stone ditemukan")
+    return
+end
+
+-- =====================================================
+-- MODEL → FAKE TOOL (STABLE)
+-- =====================================================
+local function ModelToFakeTool(model)
+    local handle = model:FindFirstChildWhichIsA("BasePart", true)
+    if not handle then
+        warn("Skip model (no BasePart):", model:GetFullName())
+        return
+    end
+
+    local tool = Instance.new("Tool")
+    tool.Name = model.Name
+    tool.RequiresHandle = true
+    tool.CanBeDropped = false
+
+    local handleClone = handle:Clone()
+    handleClone.Name = "Handle"
+    handleClone.Anchored = false
+    handleClone.CanCollide = false
+    handleClone.Parent = tool
+
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and part ~= handle then
+            local p = part:Clone()
+            p.Anchored = false
+            p.CanCollide = false
+            p.Parent = tool
+
+            local weld = Instance.new("WeldConstraint")
+            weld.Part0 = handleClone
+            weld.Part1 = p
+            weld.Parent = handleClone
+        end
+    end
+
+    tool.Parent = LocalPlayer.Backpack
+end
+
+-- =====================================================
+-- GUI
+-- =====================================================
 local gui = Instance.new("ScreenGui")
-gui.Name = "FishClonerGUI"
+gui.Name = "ModelFakeToolGUI"
 gui.ResetOnSpawn = false
 gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.25, 0.6)
-frame.Position = UDim2.fromScale(0.7, 0.2)
-frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.Size = UDim2.fromScale(0.3, 0.65)
+frame.Position = UDim2.fromScale(0.67, 0.18)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,14)
 
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,40)
-title.Position = UDim2.new(0,0,0,0)
+title.Size = UDim2.new(1,0,0,42)
 title.BackgroundTransparency = 1
-title.Text = "Fish Model/Tool Cloner"
-title.TextColor3 = Color3.new(1,1,1)
+title.Text = "Fish + Enchant Stone → Fake Tool"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
+title.TextColor3 = Color3.new(1,1,1)
 
 local scroll = Instance.new("ScrollingFrame", frame)
-scroll.Size = UDim2.new(1,-20,1,-50)
-scroll.Position = UDim2.new(0,10,0,45)
-scroll.BackgroundTransparency = 1
+scroll.Position = UDim2.new(0,10,0,48)
+scroll.Size = UDim2.new(1,-20,1,-58)
 scroll.ScrollBarThickness = 6
 scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.BackgroundTransparency = 1
 
 local layout = Instance.new("UIListLayout", scroll)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0,6)
 
--- ===============================
--- Fungsi rekursif untuk ambil semua model dan tool
--- ===============================
-local function getAllModelsAndTools(folder)
-    local items = {}
-    for _, item in ipairs(folder:GetChildren()) do
-        if item:IsA("Model") or item:IsA("Tool") then
-            table.insert(items, item)
-        elseif item:IsA("Folder") then
-            local subItems = getAllModelsAndTools(item)
-            for _, sub in ipairs(subItems) do
-                table.insert(items, sub)
-            end
-        end
-    end
-    return items
-end
-
-local allItems = getAllModelsAndTools(fishFolder)
-
--- ===============================
--- Buat tombol untuk setiap model/tool
--- ===============================
-for _, item in ipairs(allItems) do
+-- =====================================================
+-- CREATE BUTTONS
+-- =====================================================
+for _, model in ipairs(AllModels) do
     local btn = Instance.new("TextButton", scroll)
     btn.Size = UDim2.new(1,0,0,36)
-    btn.Text = item.Name
+    btn.Text = model.Name
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 14
     btn.TextColor3 = Color3.new(1,1,1)
-    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+    btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
 
     btn.MouseButton1Click:Connect(function()
-        local clone = item:Clone()
-        if clone:IsA("Tool") then
-            clone.Parent = LocalPlayer.Backpack
-            print("Tool "..clone.Name.." diclone ke Backpack")
-        else
-            -- Set PrimaryPart otomatis
-            if not clone.PrimaryPart then
-                local primary = clone:FindFirstChildWhichIsA("BasePart") or clone:FindFirstChild("HumanoidRootPart")
-                if primary then
-                    clone.PrimaryPart = primary
-                else
-                    warn("Model "..clone.Name.." tidak punya BasePart, skip clone")
-                    return
-                end
-            end
-            clone.Parent = Workspace
-            clone:SetPrimaryPartCFrame(LocalPlayer.Character.PrimaryPart.CFrame + Vector3.new(5,0,0))
-            print("Model "..clone.Name.." diclone ke Workspace")
-        end
+        ModelToFakeTool(model)
     end)
 end
