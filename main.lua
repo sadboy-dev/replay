@@ -56,24 +56,30 @@ title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 
-local box = Instance.new("TextBox", frame)
-box.Position = UDim2.new(0,10,0,50)
-box.Size = UDim2.new(1,-20,1,-100)
-box.MultiLine = true
-box.ClearTextOnFocus = false
-box.TextWrapped = false
-box.TextEditable = false     -- READ-ONLY
-box.TextSelectable = true    -- COPY-FRIENDLY iOS
-box.TextXAlignment = Enum.TextXAlignment.Left
-box.TextYAlignment = Enum.TextYAlignment.Top
-box.Font = Enum.Font.Code
-box.TextSize = 13
-box.TextColor3 = Color3.fromRGB(220,220,220)
-box.BackgroundColor3 = Color3.fromRGB(15,15,15)
-box.BorderSizePixel = 0
-box.ScrollingEnabled = true
-Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
-box.Text = finalText
+-- ===============================
+-- SCROLLING FRAME + LABEL
+-- ===============================
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Position = UDim2.new(0,10,0,50)
+scroll.Size = UDim2.new(1,-20,1,-100)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.new(0,0,0,0)
+scroll.ScrollBarThickness = 10
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local textLabel = Instance.new("TextLabel", scroll)
+textLabel.Size = UDim2.new(1,0,0,0)
+textLabel.Position = UDim2.new(0,0,0,0)
+textLabel.BackgroundTransparency = 1
+textLabel.Font = Enum.Font.Code
+textLabel.TextSize = 13
+textLabel.TextColor3 = Color3.fromRGB(220,220,220)
+textLabel.TextXAlignment = Enum.TextXAlignment.Left
+textLabel.TextYAlignment = Enum.TextYAlignment.Top
+textLabel.TextWrapped = true
+textLabel.Text = finalText
+textLabel.AutomaticSize = Enum.AutomaticSize.Y
 
 -- ===============================
 -- BUTTONS
@@ -95,17 +101,19 @@ local pauseBtn = makeButton("⏸ PAUSE",0.03)
 local playBtn  = makeButton("▶ PLAY",0.36)
 local clearBtn = makeButton("🧹 CLEAR",0.69)
 
--- tombol dummy
 pauseBtn.MouseButton1Click:Connect(function()
-    box.Text = box.Text .. "\n[PAUSE CLICKED]"
-    box.CursorPosition = #box.Text+1
+    textLabel.Text = textLabel.Text .. "\n[PAUSE CLICKED]"
+    scroll.CanvasPosition = Vector2.new(0, scroll.CanvasSize.Y.Offset)
 end)
+
 playBtn.MouseButton1Click:Connect(function()
-    box.Text = box.Text .. "\n[PLAY CLICKED]"
-    box.CursorPosition = #box.Text+1
+    textLabel.Text = textLabel.Text .. "\n[PLAY CLICKED]"
+    scroll.CanvasPosition = Vector2.new(0, scroll.CanvasSize.Y.Offset)
 end)
+
 clearBtn.MouseButton1Click:Connect(function()
-    box.Text = finalText  -- reset ke hasil scan
+    textLabel.Text = finalText
+    scroll.CanvasPosition = Vector2.new(0,0)
 end)
 
 -- ===============================
@@ -125,14 +133,14 @@ minimizeBtn.MouseButton1Click:Connect(function()
     if minimized then
         frame.Size = originalSize
         frame.Position = originalPos
-        box.Visible = true
+        scroll.Visible = true
         pauseBtn.Visible = true
         playBtn.Visible = true
         clearBtn.Visible = true
         minimized = false
     else
         frame.Size = UDim2.new(0,200,0,40)
-        box.Visible = false
+        scroll.Visible = false
         pauseBtn.Visible = false
         playBtn.Visible = false
         clearBtn.Visible = false
@@ -144,9 +152,9 @@ end)
 -- AUTO SCROLL FUNCTION
 -- ===============================
 local function appendText(line)
-    box.Text = box.Text .. "\n" .. line
+    textLabel.Text = textLabel.Text .. "\n" .. line
     task.defer(function()
-        box.CursorPosition = #box.Text+1
+        scroll.CanvasPosition = Vector2.new(0, scroll.CanvasSize.Y.Offset)
     end)
 end
 
@@ -156,7 +164,7 @@ end
 pcall(function()
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "FishIt Scanner";
-        Text = "Tap TextBox → Copy\nMinimize button available";
+        Text = "Tap & hold text → Copy\nMinimize button available";
         Duration = 6;
     })
 end)
